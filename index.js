@@ -106,11 +106,10 @@ function Db(file, _opts) {
 	})
 
 	function _done() {
-		var next = db.queue.shift()
 		db.headers = db.pending = false
 		if (db.onDone) db.onDone.call(db, db.error)
-		if (next !== void 0) {
-			db.each.apply(db, next)
+		if (db.queue.length > 0) {
+			db.each.apply(db, db.queue.shift())
 		}
 	}
 	function read(buf, type, cut, i) {
@@ -137,7 +136,7 @@ Db.prototype = {
 						values[i] == null ? "null" :
 						values[i]
 					) :
-					"'" + values[i].replace(escapeRe, "''") + "'"
+					"'" + values[i].replace(escapeRe, "''").replace(/\0/g, "") + "'"
 				))
 			}
 		} else if (typeof values === "function") {

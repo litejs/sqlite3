@@ -10,9 +10,9 @@ var spawn = require("child_process").spawn
 
 module.exports = openDb
 
-function openDb(file) {
+function openDb(file, opts) {
 	return opened[file] || (
-		opened.file = new Db(file)
+		opened.file = new Db(file, opts)
 	)
 }
 

@@ -21,7 +21,8 @@ function nop() {}
 function Db(file, _opts) {
 	var db = this
 	, opts = Object.assign({}, defaults, _opts)
-	, _col = 0, _len = 0, _type = 0, _row
+	, _col = 0, _len = 0, _type = 0
+	, _row = {}
 	, args = [opts.bin, "-quote", "-header", file || ""]
 	, bufs = []
 
@@ -42,7 +43,7 @@ function Db(file, _opts) {
 		, len = buf.length
 		, type = _type
 		, col = _col
-		, row = _row || {}
+		, row = _row
 
 		if (buf[0] === 89) {
 			// no response, wait stderr before calling callback
@@ -74,7 +75,7 @@ function Db(file, _opts) {
 				if (bufs.length > 0) {
 					bufs.push(buf.slice(0, i))
 					row[db.headers[col]] = read(Buffer.concat(bufs), type, 0, i + _len)
-					_col = _len = _type = _row = bufs.length = 0
+					_col = _len = _type = bufs.length = 0
 				} else {
 					row[db.headers[col]] = read(buf, type, cut, i)
 				}
@@ -89,12 +90,13 @@ function Db(file, _opts) {
 				type = 0
 			}
 		}
+		_col = col
+		_row = row
+		_type = type
+		if (cut === len) return
 		if (bufs.push(buf) === 1) {
 			if (cut > 0) bufs[0] = bufs[0].slice(cut)
-			_col = col
 			_len = bufs[0].length
-			_type = type
-			_row = row
 		} else {
 			_len += len
 		}
@@ -106,6 +108,8 @@ function Db(file, _opts) {
 	})
 
 	function _done() {
+		_row = {}
+		_type = _col = 0
 		db.headers = db.pending = false
 		if (db.onDone) db.onDone.call(db, db.error)
 		if (db.queue.length > 0) {

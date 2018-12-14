@@ -31,6 +31,17 @@ require("..")
 	, db = openDb(":memory:", {
 		pipe: smallChunks
 	})
+	, noErr = mock.fn(function(err) {
+		assert.equal(err, null)
+	})
+	, assertGet = mock.fn(function(err, row) {
+		assert.equal(err, null)
+		assert.equal(row.val.length, control.length)
+		assert.equal(row.val, control)
+	})
+	, assertVersion = mock.fn(function(err, row) {
+		assert.equal(row, {user_version: 0})
+	})
 	, rows = [
 		{t: 123, key: "1\n2'3", val: false},
 		{t: null, key: "abc", val: true}
@@ -45,40 +56,44 @@ require("..")
 	//db.run("SELECT 1")
 	//db.get("select sqlite_version() as version", [], cb("VERSION"))
 
-	db.run("CREATE TABLE q1 (t INT, key TEXT, val BLOB)", [])
-	db.run("insert into q1 values (?, ?, ?)", [123, "1\n2'3", false])
-	db.run("insert into q1 values (null, 'abc', x'01')")
+	db.run("CREATE TABLE q1 (t INT, key TEXT, val BLOB)", noErr)
+	db.run("insert into q1 values (?, ?, ?)", [123, "1\n2'3", false], noErr)
+	db.run("insert into q1 values (null, 'abc', x'01')", null, noErr)
 
-	/*
-	db.all("SELECT * from q1", [], function(err, _rows) {
+
+	db.all("SELECT * from q1", assertAll)
+	db.all("SELECT * from q1", [], assertAll)
+	db.all("SELECT * from q1", null, assertAll)
+	function assertAll(err, _rows) {
 		assert.equal(err, null)
 		assert.equal(_rows, rows)
-	})
-	*/
+	}
 
-	db.run("update q1 set val=? where key=?", [control, "abc"], function() {
-	})
+	db.run("update q1 set val=? where key=?", [control, "abc"], noErr)
 
-	db.get("SELECT val from q1 where key=?", ["abc"], function(err, row) {
-		assert.equal(row.val.length, control.length)
-		assert.equal(row.val, control)
-	})
-	db.run("update q1 set val=? where key=?", ["a\0b", "abc"], function(){
-	})
-	db.get("SELECT val from q1 where key=?", ["abc"], function(err, row) {
-		assert.equal(row.val, "ab")
-	})
+	db.get("SELECT val from q1 where key='abc'", assertGet)
+	db.get("SELECT val from q1 where key='abc'", null, assertGet)
+	db.get("SELECT val from q1 where key=?", ["abc"], assertGet)
+
+	db.run("update q1 set val=? where key=?", ["a\0b", "abc"], noErr)
 
 	db.run("select changes()")
 
 
+	db.get("PRAGMA user_version", assertVersion)
+	db.get("PRAGMA user_version", [], assertVersion)
+	db.get("PRAGMA user_version", null, assertVersion)
 
 	//db.run("SELECT 1;\n");
 
 	db.close(function(err) {
 		assert.equal(err, null)
+		assert.equal(noErr.called, 5)
+		assert.equal(assertGet.called, 3)
+		assert.equal(assertVersion.called, 3)
 		assert.end()
 	})
+
 })
 
 

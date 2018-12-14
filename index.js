@@ -116,7 +116,7 @@ function Db(file, _opts) {
 		_type = _col = 0
 		db.headers = db.pending = false
 		if (db.onDone) db.onDone.call(db, db.error)
-		if (db.queue.length > 0) {
+		if (db.queue.length > 0 && db.pending === false) {
 			db.each.apply(db, db.queue.shift())
 		}
 	}

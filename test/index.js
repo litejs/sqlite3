@@ -3,11 +3,27 @@
 require("..")
 .test("sqlite", function(assert, mock) {
 	var openDb = require("../../lib/db.js")
+	, db = openDb(":memory:", {
+	})
+	, txt = "a','',''',\n"
+	db.run("CREATE TABLE q1 (t INT, key TEXT, val BLOB)", [])
+	db.run("insert into q1 values (?, ?, ?)", [123, "", txt])
+	db.get("SELECT val from q1 where t=?", [123], function(err, row) {
+		assert.equal(row.val, txt)
+		assert.end()
+	})
+})
+.test("sqlite", function(assert, mock) {
+	var openDb = require("../../lib/db.js")
 	, Transform = require("stream").Transform
+	, step = Math.floor(Math.random() * 25) + 4
 	, smallChunks = new Transform({
 		transform(chunk, encoding, callback) {
-			for (var i = 0, len = chunk.length; i < len; ) {
-				this.push(chunk.slice(i, i+=23))
+			var i = 0
+			, len = chunk.length
+			this.push(chunk.slice(i, i+=23))
+			for (; i < len; ) {
+				this.push(chunk.slice(i, i+=4))
 			}
 			callback()
 		}
@@ -19,12 +35,12 @@ require("..")
 		{t: 123, key: "1\n2'3", val: false},
 		{t: null, key: "abc", val: true}
 	]
-	, control = String.fromCharCode(
+	, control = (String.fromCharCode(
 		 1,  1,  2,  3,  4,  5,  6,  7,  8,  9,
 		10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
 		20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
 		30, 31, 32, 33, 34, 35, 36, 37, 38, 39
-	) + " \u2028 \u2029\\"
+	 ) + " \u2028 \u2029\\ ','',''',").repeat(step)
 
 	//db.run("SELECT 1")
 	//db.get("select sqlite_version() as version", [], cb("VERSION"))

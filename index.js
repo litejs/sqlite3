@@ -54,15 +54,17 @@ function Db(file, _opts) {
 			db.firstRow = row
 			i = cut = buf.indexOf(10) + 1
 			db.headers = buf.toString("utf8", 1, i - 2).split("','")
+		} else if (type === 7 && buf[0] === 39) {
+			type = 6
+			i = 1
 		}
 
 		for (; i < len; ) {
-			if (type > 3) {
-				if (
-					buf[i++] !== 39 ||
-					buf[i] === 39 && ++type
-				) continue
-			}
+			if (type > 3 && (
+				buf[i++] !== 39 ||
+				buf[i] === 39 && (type = 6) && ++i ||
+				i === len && (type = 7)
+			)) continue
 			code = buf[i++]
 			if (type === 0) {
 				if (code === 89) return _done()      // Y

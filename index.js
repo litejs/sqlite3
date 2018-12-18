@@ -3,7 +3,8 @@
 var spawn = require("child_process").spawn
 , opened = {}
 , defaults = {
-	"bin": "sqlite3"
+	bin: "sqlite3",
+	detached: true
 }
 , escapeRe = /'/g
 , unescapeRe = /''/g
@@ -33,7 +34,7 @@ function Db(file, _opts) {
 	db.queue = []
 	db.headers = db.pending = false
 
-	db.child = spawn(args.shift(), args)
+	db.child = spawn(args.shift(), args, opts)
 	;(
 		opts.pipe ?
 		db.child.stdout.pipe(opts.pipe) :

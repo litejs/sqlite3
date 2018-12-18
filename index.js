@@ -48,12 +48,12 @@ function Db(file, _opts) {
 		, col = _col
 		, row = _row
 
-		if (buf[0] === 89) {
-			// no response, wait stderr before calling callback
-			return setImmediate(_done)
-		}
-
 		if (db.headers === false) {
+			if (buf[0] === 89) {
+				// no response, wait stderr before calling callback
+				return setImmediate(_done)
+			}
+			if (buf[0] === 10 && buf.length === 1) return
 			db.firstRow = row
 			i = cut = buf.indexOf(10) + 1
 			db.headers = buf.toString("utf8", 1, i - 2).split("','")
@@ -80,7 +80,7 @@ function Db(file, _opts) {
 				if (bufs.length > 0) {
 					bufs.push(buf.slice(0, i))
 					row[db.headers[col]] = read(Buffer.concat(bufs), type, 0, i + _len)
-					_col = _len = _type = bufs.length = 0
+					_len = _type = bufs.length = 0
 				} else {
 					row[db.headers[col]] = read(buf, type, cut, i)
 				}
@@ -166,15 +166,27 @@ Db.prototype = {
 		}
 	},
 	run: function(query, values, onDone) {
+		if (typeof values === "function") {
+			onDone = values
+			values = null
+		}
 		return this.each(query, values, nop, onDone)
 	},
 	all: function(query, values, onDone) {
+		if (typeof values === "function") {
+			onDone = values
+			values = null
+		}
 		var rows = []
 		this.each(query, values, rows.push.bind(rows), function(err) {
 			onDone.call(this, err, rows)
 		})
 	},
 	get: function(query, values, onDone) {
+		if (typeof values === "function") {
+			onDone = values
+			values = null
+		}
 		this.each(query, values, nop, function(err) {
 			onDone.call(this, err, this.firstRow)
 		})

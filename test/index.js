@@ -23,7 +23,7 @@ require("..")
 			, len = chunk.length
 			this.push(chunk.slice(i, i+=23))
 			for (; i < len; ) {
-				this.push(chunk.slice(i, i+=4))
+				this.push(chunk.slice(i, i+=6))
 			}
 			callback()
 		}
@@ -59,7 +59,6 @@ require("..")
 	db.run("CREATE TABLE q1 (t INT, key TEXT, val BLOB)", noErr)
 	db.run("insert into q1 values (?, ?, ?)", [123, "1\n2'3", false], noErr)
 	db.run("insert into q1 values (null, 'abc', x'01')", null, noErr)
-
 
 	db.all("SELECT * from q1", assertAll)
 	db.all("SELECT * from q1", [], assertAll)

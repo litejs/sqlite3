@@ -11,9 +11,7 @@ var spawn = require("child_process").spawn
 module.exports = openDb
 
 function openDb(file, opts) {
-	return opened[file] || (
-		opened.file = new Db(file, opts)
-	)
+	return opened[file] || new Db(file, opts)
 }
 
 function nop() {}
@@ -25,6 +23,10 @@ function Db(file, _opts) {
 	, _row = {}
 	, args = [opts.bin, "-quote", "-header", file || ""]
 	, bufs = []
+
+	if (file && file !== ":memory:") {
+		opened[db.file = file] = db
+	}
 
 	if (opts.nice) args.unshift("nice", "-n", opts.nice)
 
@@ -177,6 +179,7 @@ Db.prototype = {
 		})
 	},
 	close: function(onDone) {
+		opened[this.file] = null
 		this.each(".quit", nop, onDone)
 	}
 }

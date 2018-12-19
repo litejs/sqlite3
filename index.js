@@ -137,6 +137,14 @@ function Db(file, _opts) {
 }
 
 Db.prototype = {
+	_add: function(query, values, onDone, onRow) {
+		var db = this
+		if (db.pending === true) {
+			db.queue.unshift([query, values, onRow, onDone])
+		} else {
+			db.each(query, values, onRow, onDone)
+		}
+	},
 	each: function(query, values, onRow, onDone) {
 		var db = this
 
@@ -202,4 +210,68 @@ Db.prototype = {
 		this.each(".quit", nop, onDone)
 	}
 }
+
+openDb.migrate = function migrate(db, dir) {
+	var fs = require("fs")
+	, path = require("./path")
+	, log = require("./log")("db", true)
+
+	db.get("PRAGMA user_version", function(err, res) {
+		if (err) return log.error(err)
+		var patch = ""
+		, current = res.user_version
+		, files = fs.readdirSync(dir).filter(isSql).sort()
+		, latest = parseInt(files[files.length - 1], 10)
+
+		log.info("dir:%s current:%i latest:%i", dir, current, latest)
+
+		function saveVersion(err) {
+			if (err) throw Error(err)
+			db._add("INSERT INTO db_schema_log(ver) VALUES (?)", [current], applyPatch)
+			db._add("PRAGMA user_version=?", [current], function(err) {
+				if (err) throw Error(err)
+				log.info("Migrated to", latest)
+			})
+		}
+
+		function applyPatch(err) {
+			if (err) throw Error(err)
+			for (var ver, f, i = 0; f = files[i++]; ) {
+				ver = parseInt(f, 10)
+				if (ver > current) {
+					current = ver
+					log.info("Applying migration: %s", f)
+					f = fs.readFileSync(path.resolve(dir, f), "utf8").trim().split(/\s*^-- Down$\s*/m)
+					db._add(
+						"REPLACE INTO db_schema(ver,up,down) VALUES(?,?,?)",
+						[ver, f[0], f[1]],
+						saveVersion
+					)
+					db._add(f[0])
+				}
+			}
+		}
+
+		if (latest > current) {
+			applyPatch()
+		} else if (latest < current) {
+			var rows = []
+			db._add(
+				"SELECT down FROM db_schema WHERE id>? ORDER BY id DESC",
+				[current],
+				function(err) {
+					if (err) throw Error(err)
+					var patch = rows.map(r=>r.rollback).join("\n")
+					db._add(patch, null, saveVersion)
+				},
+				rows.push.bind(rows)
+			)
+		}
+	})
+
+	function isSql(name) {
+		return name.split(".").pop()==="sql"
+	}
+}
+
 

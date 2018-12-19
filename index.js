@@ -22,7 +22,7 @@ function Db(file, _opts) {
 	, opts = Object.assign({}, defaults, _opts)
 	, _col = 0, _len = 0, _type = 0
 	, _row = {}
-	, args = [opts.bin, "-quote", "-header", file || ""]
+	, args = [opts.bin, "-header", file || ""]
 	, bufs = []
 
 	if (file && file !== ":memory:") {
@@ -110,6 +110,10 @@ function Db(file, _opts) {
 
 	db.child.stderr.on("data", function(buf) {
 		db.error = buf.toString("utf8", 0, buf.length - 1)
+	})
+
+	db.run(".mode quote", function(err) {
+		if (err) throw Error(err)
 	})
 
 	function _done() {

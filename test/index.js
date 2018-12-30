@@ -74,7 +74,7 @@ require("..")
 	db.get("SELECT val from q1 where key='abc'", null, assertGet)
 	db.get("SELECT val from q1 where key=?", ["abc"], assertGet)
 
-	db.run("update q1 set val=? where key=?", ["a\0b", "abc"], noErr)
+	db.run("update q1 set val=? where key=?", ["a\0b?", "abc"], noErr)
 
 	db.run("select changes()")
 

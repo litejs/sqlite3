@@ -137,8 +137,9 @@ Db.prototype = {
 		var db = this
 
 		if (Array.isArray(values)) {
+			query = query.split("?")
 			for (var i = 0, len = values.length; i < len; i++) {
-				query = query.replace("?", (
+				query[i] += (
 					typeof values[i] !== "string" ? (
 						values[i] === true ? "X'01'" :
 						values[i] === false ? "X'00'" :
@@ -146,8 +147,9 @@ Db.prototype = {
 						values[i]
 					) :
 					"'" + values[i].replace(escapeRe, "''").replace(/\0/g, "") + "'"
-				))
+				)
 			}
+			query = query.join("")
 		} else if (typeof values === "function") {
 			onDone = onRow
 			onRow = values

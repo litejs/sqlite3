@@ -129,7 +129,10 @@ function Db(file, _opts) {
 		return (
 			type === 1 ? null :
 			type === 2 ? 1 * buf.toString("utf8", cut, i-1) :
-			type === 4 && cut + 6 === i ? buf[cut + 3] === 49 :
+			type === 4 ? (
+				cut + 6 === i ? buf[cut + 3] === 49 :
+				Buffer.from(buf.toString("utf8", cut+2, i-2), "hex")
+			) :
 			type > 5 ? buf.toString("utf8", cut+1, i-2).replace(unescapeRe, "'") :
 			buf.toString("utf8", cut+1, i-2)
 		)
@@ -156,6 +159,7 @@ Db.prototype = {
 						values[i] === true ? "X'01'" :
 						values[i] === false ? "X'00'" :
 						values[i] == null ? "null" :
+						Buffer.isBuffer(values[i]) ? "X'" + values[i].toString("hex") + "'" :
 						values[i]
 					) :
 					"'" + values[i].replace(escapeRe, "''").replace(/\0/g, "") + "'"

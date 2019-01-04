@@ -47,11 +47,11 @@ require("..")
 		{t: null, key: "abc", val: true}
 	]
 	, control = (String.fromCharCode(
-		 1,  1,  2,  3,  4,  5,  6,  7,  8,  9,
+		 1,  2,  3,  4,  5,  6,  7,  8,  9,
 		10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
 		20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
 		30, 31, 32, 33, 34, 35, 36, 37, 38, 39
-	 ) + " \u2028 \u2029\\ ','',''',").repeat(step)
+	 ) + "? \u2028 \u2029\\ ','',''',").repeat(step)
 
 	//db.run("SELECT 1")
 	//db.get("select sqlite_version() as version", [], cb("VERSION"))
@@ -74,7 +74,11 @@ require("..")
 	db.get("SELECT val from q1 where key='abc'", null, assertGet)
 	db.get("SELECT val from q1 where key=?", ["abc"], assertGet)
 
-	db.run("update q1 set val=? where key=?", ["a\0b?", "abc"], noErr)
+	db.run("update q1 set val=? where key=?", [Buffer.from("a\0b"), "abc"], noErr)
+	db.get("SELECT val from q1 where key='abc'", function(err, row) {
+		assert.equal(err, null)
+		assert.equal(row.val, Buffer.from("a\0b"))
+	})
 
 	db.run("select changes()")
 

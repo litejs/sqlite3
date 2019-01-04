@@ -85,7 +85,7 @@ function Db(file, _opts) {
 					row[db.headers[col]] = read(buf, type, cut, i)
 				}
 				if (code === 10) {
-					if (db.onRow) db.onRow.call(db, row)
+					if (db.onRow !== null) db.onRow.call(db, row)
 					row = {}
 					col = 0
 				} else {
@@ -120,7 +120,7 @@ function Db(file, _opts) {
 		_row = {}
 		_type = _col = 0
 		db.headers = db.pending = false
-		if (db.onDone) db.onDone.call(db, db.error)
+		if (db.onDone !== null) db.onDone.call(db, db.error)
 		if (db.queue.length > 0 && db.pending === false) {
 			db.each.apply(db, db.queue.shift())
 		}
@@ -175,8 +175,8 @@ Db.prototype = {
 		} else {
 			db.pending = true
 			db.error = null
-			db.onRow = onRow
-			db.onDone = onDone
+			db.onRow = typeof onRow === "function" ? onRow : null
+			db.onDone = typeof onDone === "function" ? onDone : null
 			db.child.stdin.write(
 				query.charCodeAt(0) !== 46 && query.charCodeAt(query.length-1) !== 59 ? query + ";\n.print Y\n" :
 				query + "\n.print Y\n"

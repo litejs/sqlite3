@@ -56,9 +56,13 @@ require("..")
 	//db.run("SELECT 1")
 	//db.get("select sqlite_version() as version", [], cb("VERSION"))
 
-	db.run("CREATE TABLE q1 (t INT, key TEXT, val BLOB)", noErr)
+	db.run("CREATE TABLE q1 (t INT PRIMARY KEY, key TEXT, val BLOB)", noErr)
 	db.run("insert into q1 values (?, ?, ?)", [123, "1\n2'3", false], noErr)
 	db.run("insert into q1 values (null, 'abc', x'01')", null, noErr)
+
+	db.run("insert into q1 values (?, ?, ?)", [123, "true", true], function(err) {
+		assert.ok(err)
+	})
 
 	db.all("SELECT * from q1", assertAll)
 	db.all("SELECT * from q1", [], assertAll)

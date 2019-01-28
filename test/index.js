@@ -23,7 +23,7 @@ require("..")
 			, len = chunk.length
 			this.push(chunk.slice(i, i+=23))
 			for (; i < len; ) {
-				this.push(chunk.slice(i, i+=6))
+				this.push(chunk.slice(i, i+=7))
 			}
 			callback()
 		}

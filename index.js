@@ -57,13 +57,16 @@ function Db(file, _opts) {
 			db.firstRow = row
 			i = cut = buf.indexOf(10) + 1
 			db.headers = buf.toString("utf8", 1, i - 2).split("','")
-		} else if (type === 7 && buf[0] === 39) {
+		} else if (type === 7) {
 			type = 6
 			i = 1
+			if (buf[0] === 10 || buf[0] === 44) {
+				read(buf, i)
+			}
 		}
 
 		for (; i < len; ) {
-			if (type > 3 && (
+			if (type > 4 && (
 				buf[i++] !== 39 ||
 				buf[i] === 39 && (type = 6) && ++i ||
 				i === len && (type = 7)
@@ -77,22 +80,7 @@ function Db(file, _opts) {
 					code === 78 ? (i+=3, 1) : 2  // NULL : numbers
 				)
 			} else if (code === 10 || code === 44) {     // \n || ,
-				if (bufs.length > 0) {
-					bufs.push(buf.slice(0, i))
-					row[db.headers[col]] = read(Buffer.concat(bufs), type, 0, i + _len)
-					_len = _type = bufs.length = 0
-				} else {
-					row[db.headers[col]] = read(buf, type, cut, i)
-				}
-				if (code === 10) {
-					if (db.onRow !== null) db.onRow.call(db, row)
-					row = {}
-					col = 0
-				} else {
-					col++
-				}
-				cut = i
-				type = 0
+				read(buf, i)
 			}
 		}
 		_col = col
@@ -104,6 +92,33 @@ function Db(file, _opts) {
 			_len = bufs[0].length
 		} else {
 			_len += len
+		}
+		function read(buf, i) {
+			var j = i
+			if (bufs.length > 0) {
+				bufs.push(buf.slice(0, j))
+				buf = Buffer.concat(bufs, j += _len)
+				_len = _type = bufs.length = 0
+			}
+			row[db.headers[col]] = (
+				type === 1 ? null :
+				type === 2 ? 1 * buf.toString("utf8", cut, j-1) :
+				type === 4 ? (
+					cut + 6 === j ? buf[cut + 3] === 49 :
+					Buffer.from(buf.toString("utf8", cut+2, j-2), "hex")
+				) :
+				type > 5 ? buf.toString("utf8", cut+1, j-2).replace(unescapeRe, "'") :
+				buf.toString("utf8", cut+1, j-2)
+			)
+			if (code === 10) {
+				if (db.onRow !== null) db.onRow.call(db, row)
+				row = {}
+				col = 0
+			} else {
+				col++
+			}
+			cut = i
+			type = 0
 		}
 	})
 	.on("end", _done)
@@ -124,18 +139,6 @@ function Db(file, _opts) {
 		if (db.queue.length > 0 && db.pending === false) {
 			db.each.apply(db, db.queue.shift())
 		}
-	}
-	function read(buf, type, cut, i) {
-		return (
-			type === 1 ? null :
-			type === 2 ? 1 * buf.toString("utf8", cut, i-1) :
-			type === 4 ? (
-				cut + 6 === i ? buf[cut + 3] === 49 :
-				Buffer.from(buf.toString("utf8", cut+2, i-2), "hex")
-			) :
-			type > 5 ? buf.toString("utf8", cut+1, i-2).replace(unescapeRe, "'") :
-			buf.toString("utf8", cut+1, i-2)
-		)
 	}
 }
 

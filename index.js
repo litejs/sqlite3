@@ -185,7 +185,7 @@ Db.prototype = {
 		} else {
 			db.pending = true
 			db.changes = 0
-			db.error = null
+			db.error = db.firstRow = null
 			db.onRow = typeof onRow === "function" ? onRow : null
 			db.onDone = typeof onDone === "function" ? onDone : null
 			db.child.stdin.write(

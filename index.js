@@ -220,6 +220,16 @@ Db.prototype = {
 			onDone.call(this, err, this.firstRow)
 		})
 	},
+	insert: function(query, values, onDone) {
+		if (values && values.constructor === Object) {
+			query += "(" + Object.keys(values) + ")"
+			values = Object.values(values)
+		}
+		if (Array.isArray(values)) {
+			query += " VALUES (" + Array(values.length).join("?,") + "?)"
+		}
+		this.get("INSERT INTO " + query + ";SELECT last_insert_rowid() AS lastId;", values, onDone)
+	},
 	close: function(onDone) {
 		opened[this.file] = null
 		this.each(".quit", nop, onDone)

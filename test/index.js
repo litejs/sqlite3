@@ -44,7 +44,8 @@ require("..")
 	})
 	, rows = [
 		{t: 123, key: "1\n2'3", val: false},
-		{t: null, key: "abc", val: true}
+		{t: null, key: "abc", val: true},
+		{t: 234, key: "", val: null}
 	]
 	, control = (String.fromCharCode(
 		 1,  2,  3,  4,  5,  6,  7,  8,  9,
@@ -58,12 +59,16 @@ require("..")
 
 	db.run("CREATE TABLE q1 (t INT PRIMARY KEY, key TEXT, val BLOB)", noErr)
 	db.run("insert into q1 values (?, ?, ?)", [123, "1\n2'3", false], noErr)
-	db.run("insert into q1 values (null, 'abc', x'01')", null, noErr)
+	db.insert("q1 values (null, 'abc', x'01')", function(err, row) {
+		assert.equal(err, null)
+		assert.equal(row.lastId, 2)
+	})
 
-	db.run("insert into q1 values (?, ?, ?)", [123, "true", true], function(err) {
-		assert.ok(err)
+	db.insert("q1", [123, "true", true], function(err) {
+		assert.ok(/UNIQUE constraint/.test(err))
 		assert.equal(db.changes, 0)
 	})
+	db.insert("q1", rows[2], noErr)
 
 	db.all("SELECT * from q1", assertAll)
 	db.all("SELECT * from q1", [], assertAll)

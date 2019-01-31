@@ -62,6 +62,7 @@ require("..")
 
 	db.run("insert into q1 values (?, ?, ?)", [123, "true", true], function(err) {
 		assert.ok(err)
+		assert.equal(db.changes, 0)
 	})
 
 	db.all("SELECT * from q1", assertAll)
@@ -70,6 +71,7 @@ require("..")
 	function assertAll(err, _rows) {
 		assert.equal(err, null)
 		assert.equal(_rows, rows)
+		assert.equal(db.changes, 0)
 	}
 
 	db.run("update q1 set val=? where key=?", [control, "abc"], noErr)
@@ -84,7 +86,11 @@ require("..")
 		assert.equal(row.val, Buffer.from("a\0b"))
 	})
 
-	db.run("select changes()")
+	db.run(".changes on")
+	db.get("select changes() as c, total_changes() as t", function(err, row) {
+		assert.equal(row.c, db.changes)
+		assert.equal(row.t, db.totalChanges)
+	})
 
 
 	db.get("PRAGMA user_version", assertVersion)

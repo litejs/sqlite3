@@ -77,6 +77,7 @@ function Db(file, _opts) {
 				type = (
 					code === 39 ? 5 :            // '
 					code === 88 ? 4 :            // X
+					code === 99 ? 3 :            // c
 					code === 78 ? (i+=3, 1) : 2  // NULL : numbers
 				)
 			} else if (code === 10 || code === 44) {     // \n || ,
@@ -100,22 +101,28 @@ function Db(file, _opts) {
 				buf = Buffer.concat(bufs, j += _len)
 				_len = _type = bufs.length = 0
 			}
-			row[db.headers[col]] = (
-				type === 1 ? null :
-				type === 2 ? 1 * buf.toString("utf8", cut, j-1) :
-				type === 4 ? (
-					cut + 6 === j ? buf[cut + 3] === 49 :
-					Buffer.from(buf.toString("utf8", cut+2, j-2), "hex")
-				) :
-				type > 5 ? buf.toString("utf8", cut+1, j-2).replace(unescapeRe, "'") :
-				buf.toString("utf8", cut+1, j-2)
-			)
-			if (code === 10) {
-				if (db.onRow !== null) db.onRow.call(db, row)
-				row = {}
-				col = 0
+			if (type === 3) {
+				j = buf.toString("utf8").split(/[\:\s]+/)
+				db.changes = +j[1]
+				db.totalChanges = +j[3]
 			} else {
-				col++
+				row[db.headers[col]] = (
+					type === 1 ? null :
+					type === 2 ? 1 * buf.toString("utf8", cut, j-1) :
+					type === 4 ? (
+						cut + 6 === j ? buf[cut + 3] === 49 :
+						Buffer.from(buf.toString("utf8", cut+2, j-2), "hex")
+					) :
+					type > 5 ? buf.toString("utf8", cut+1, j-2).replace(unescapeRe, "'") :
+					buf.toString("utf8", cut+1, j-2)
+				)
+				if (code === 10) {
+					if (db.onRow !== null) db.onRow.call(db, row)
+					row = {}
+					col = 0
+				} else {
+					col++
+				}
 			}
 			cut = i
 			type = 0
@@ -177,6 +184,7 @@ Db.prototype = {
 			db.queue.push([query, onRow, onDone])
 		} else {
 			db.pending = true
+			db.changes = 0
 			db.error = null
 			db.onRow = typeof onRow === "function" ? onRow : null
 			db.onDone = typeof onDone === "function" ? onDone : null

@@ -17,27 +17,26 @@ function openDb(file, opts) {
 
 function nop() {}
 
-function Db(file, _opts) {
-	var db = this
-	, opts = Object.assign({}, defaults, _opts)
+function Db(file, opts) {
+	var db = Object.assign(this, defaults, opts)
 	, _col = 0, _len = 0, _type = 0
 	, _row = {}
-	, args = [opts.bin, "-header", file || ""]
+	, args = [db.bin, "-header", file || ""]
 	, bufs = []
 
 	if (file && file !== ":memory:") {
 		opened[db.file = file] = db
 	}
 
-	if (opts.nice) args.unshift("nice", "-n", opts.nice)
+	if (db.nice) args.unshift("nice", "-n", db.nice)
 
 	db.queue = []
 	db.headers = db.pending = false
 
-	db.child = spawn(args.shift(), args, opts)
+	db.child = spawn(args.shift(), args, db)
 	;(
-		opts.pipe ?
-		db.child.stdout.pipe(opts.pipe) :
+		db.pipe ?
+		db.child.stdout.pipe(db.pipe) :
 		db.child.stdout
 	).on("data", function(buf) {
 		var code
@@ -138,6 +137,8 @@ function Db(file, _opts) {
 		if (err) throw Error(err)
 	})
 
+	if (db.migration) migrate(db, db.migration)
+
 	function _done() {
 		_row = {}
 		_type = _col = 0
@@ -236,7 +237,7 @@ Db.prototype = {
 	}
 }
 
-openDb.migrate = function migrate(db, dir) {
+function migrate(db, dir) {
 	var fs = require("fs")
 	, path = require("./path")
 	, log = require("./log")("db", true)

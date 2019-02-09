@@ -10,8 +10,12 @@ require("..")
 	db.run("insert into q1 values (?, ?, ?)", [123, "", txt])
 	db.get("SELECT val from q1 where t=?", [123], function(err, row) {
 		assert.equal(row.val, txt)
-		assert.end()
 	})
+	db.text(".schema q1", function(err, text) {
+		assert.equal(err, null)
+		assert.equal(text, "CREATE TABLE q1 (t INT, key TEXT, val BLOB);")
+	})
+	db.close(assert.end)
 })
 .test("sqlite", function(assert, mock) {
 	var openDb = require("../../lib/db.js")

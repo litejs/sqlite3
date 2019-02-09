@@ -49,6 +49,16 @@ function Db(file, opts) {
 		, col = _col
 		, row = _row
 
+		if (typeof db.onRow === "string") {
+			if (buf[len - 2] === 89 && buf[len - 1] === 10 && buf[len - 3] === 10) {
+				db.onRow += buf.toString("utf8", 0, len - 3)
+				setImmediate(_done)
+			} else {
+				db.onRow += buf.toString()
+			}
+			return
+		}
+
 		if (db.headers === false) {
 			if (buf[0] === 89) {
 				// no response, wait stderr before calling callback
@@ -187,15 +197,16 @@ Db.prototype = {
 			onRow = values
 		}
 		if (db.pending === true) {
-			db.queue[immediate === true ? "unshift" : "push"]([query, onRow, onDone])
+			db.queue[immediate === true ? "unshift" : "push"]([query, null, onRow, onDone])
 		} else {
 			db.pending = true
 			db.changes = 0
 			db.real = db.user = db.sys = null
 			db.error = db.firstRow = null
-			db.onRow = typeof onRow === "function" ? onRow : null
+			db.onRow = typeof onRow === "function" || onRow === "" ? onRow : null
 			db.onDone = typeof onDone === "function" ? onDone : null
 			db.lastQuery = query
+			//db.child.stdin.write(query + "\n;\n.print Y\n")
 			db.child.stdin.write(
 				query.charCodeAt(0) !== 46 && query.charCodeAt(query.length-1) !== 59 ? query + ";\n.print Y\n" :
 				query + "\n.print Y\n"
@@ -239,6 +250,11 @@ Db.prototype = {
 			query += " VALUES (" + Array(values.length).join("?,") + "?)"
 		}
 		this.get("INSERT INTO " + query + ";SELECT last_insert_rowid() AS lastId;", values, onDone)
+	},
+	text: function(query, onDone) {
+		this.each(query, null, "", function(err) {
+			onDone.call(this, err, this.onRow)
+		})
 	},
 	close: function(onDone) {
 		opened[this.file] = null

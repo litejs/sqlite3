@@ -151,6 +151,8 @@ function Db(file, opts) {
 }
 
 Db.prototype = {
+	// Overwriting Db.prototype will ruin constructor
+	constructor: Db,
 	_add: function(query, values, onDone, onRow) {
 		var db = this
 		if (db.pending === true) {

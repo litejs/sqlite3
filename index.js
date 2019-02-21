@@ -77,6 +77,7 @@ function Db(file, opts) {
 					code === 39 ? 5 :            // '
 					code === 88 ? 4 :            // X
 					code === 99 ? 3 :            // c
+					code === 82 ? 3 :            // Run Time: real 0.001 user 0.000069 sys 0.000079
 					code === 78 ? (i+=3, 1) : 2  // NULL : numbers
 				)
 			} else if (code === 10 || code === 44) {     // \n || ,
@@ -257,11 +258,11 @@ function migrate(db, dir) {
 
 		function saveVersion(err) {
 			if (err) throw Error(err)
-			db._add("INSERT INTO db_schema_log(ver) VALUES (?)", [current], applyPatch)
-			db._add("PRAGMA user_version=?", [current], function(err) {
+			db.run("PRAGMA user_version=?", [current], function(err) {
 				if (err) throw Error(err)
 				log.info("Migrated to", latest)
 			})
+			db.run("INSERT INTO db_schema_log(ver) VALUES (?)", [current], applyPatch)
 		}
 
 		function applyPatch(err) {
@@ -272,12 +273,12 @@ function migrate(db, dir) {
 					current = ver
 					log.info("Applying migration: %s", f)
 					f = fs.readFileSync(path.resolve(dir, f), "utf8").trim().split(/\s*^-- Down$\s*/m)
-					db._add(
+					db.run(f[0])
+					db.run(
 						"REPLACE INTO db_schema(ver,up,down) VALUES(?,?,?)",
 						[ver, f[0], f[1]],
 						saveVersion
 					)
-					db._add(f[0])
 				}
 			}
 		}
@@ -286,13 +287,13 @@ function migrate(db, dir) {
 			applyPatch()
 		} else if (latest < current) {
 			var rows = []
-			db._add(
+			db.run(
 				"SELECT down FROM db_schema WHERE id>? ORDER BY id DESC",
 				[current],
 				function(err) {
 					if (err) throw Error(err)
 					var patch = rows.map(r=>r.rollback).join("\n")
-					db._add(patch, null, saveVersion)
+					db.run(patch, null, saveVersion)
 				},
 				rows.push.bind(rows)
 			)

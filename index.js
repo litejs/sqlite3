@@ -220,7 +220,9 @@ Db.prototype = {
 			values = null
 		}
 		this.each(query, values, nop, function(err) {
-			onDone.call(this, err, this.firstRow)
+			if (typeof onDone === "function") {
+				onDone.call(this, err, this.firstRow)
+			}
 		})
 	},
 	insert: function(query, values, onDone) {

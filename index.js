@@ -145,6 +145,7 @@ function Db(file, opts) {
 		_type = _col = 0
 		db.headers = db.pending = false
 		if (db.onDone !== null) db.onDone.call(db, db.error)
+		else if (db.error !== null) throw Error(db.error + "\n-- " + db.lastQuery)
 		if (db.queue.length > 0 && db.pending === false) {
 			db.each.apply(db, db.queue.shift())
 		}
@@ -172,7 +173,7 @@ Db.prototype = {
 					typeof values[i] !== "string" ? (
 						values[i] === true ? "X'01'" :
 						values[i] === false ? "X'00'" :
-						values[i] == null ? "null" :
+						values[i] == null || values[i] !== values[i] ? "null" :
 						Buffer.isBuffer(values[i]) ? "X'" + values[i].toString("hex") + "'" :
 						values[i]
 					) :
@@ -192,6 +193,7 @@ Db.prototype = {
 			db.error = db.firstRow = null
 			db.onRow = typeof onRow === "function" ? onRow : null
 			db.onDone = typeof onDone === "function" ? onDone : null
+			db.lastQuery = query
 			db.child.stdin.write(
 				query.charCodeAt(0) !== 46 && query.charCodeAt(query.length-1) !== 59 ? query + ";\n.print Y\n" :
 				query + "\n.print Y\n"

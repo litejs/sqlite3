@@ -163,22 +163,23 @@ Db.prototype = {
 			db.each(query, values, onRow, onDone)
 		}
 	},
+	_esc: function(value) {
+		return typeof value !== "string" ? (
+			value === true ? "X'01'" :
+			value === false ? "X'00'" :
+			value == null || value !== value ? "null" :
+			Buffer.isBuffer(value) ? "X'" + value.toString("hex") + "'" :
+			value
+		) :
+		"'" + value.replace(escapeRe, "''").replace(/\0/g, "") + "'"
+	},
 	each: function(query, values, onRow, onDone) {
 		var db = this
 
 		if (Array.isArray(values)) {
 			query = query.split("?")
-			for (var i = 0, len = values.length; i < len; i++) {
-				query[i] += (
-					typeof values[i] !== "string" ? (
-						values[i] === true ? "X'01'" :
-						values[i] === false ? "X'00'" :
-						values[i] == null || values[i] !== values[i] ? "null" :
-						Buffer.isBuffer(values[i]) ? "X'" + values[i].toString("hex") + "'" :
-						values[i]
-					) :
-					"'" + values[i].replace(escapeRe, "''").replace(/\0/g, "") + "'"
-				)
+			for (var i = values.length; i--; ) {
+				query[i] += db._esc(values[i])
 			}
 			query = query.join("")
 		} else if (typeof values === "function") {

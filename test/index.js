@@ -78,6 +78,10 @@ require("..")
 		assert.equal(_rows, rows)
 		assert.equal(db.changes, 0)
 	}
+	db.all("SELECT * from q1 where key in (?)", [["abc", ""]], function(err, _rows) {
+		assert.equal(err, null)
+		assert.equal(_rows, [rows[1], rows[2]])
+	})
 
 	db.run("update q1 set val=? where key=?", [control, "abc"], noErr)
 

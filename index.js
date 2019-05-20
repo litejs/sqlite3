@@ -163,11 +163,12 @@ Db.prototype = {
 			db.each(query, values, onRow, onDone)
 		}
 	},
-	_esc: function(value) {
+	_esc: function _esc(value) {
 		return typeof value !== "string" ? (
 			value === true ? "X'01'" :
 			value === false ? "X'00'" :
 			value == null || value !== value ? "null" :
+			Array.isArray(value) ? value.map(_esc).join(",") :
 			Buffer.isBuffer(value) ? "X'" + value.toString("hex") + "'" :
 			value
 		) :

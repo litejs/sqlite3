@@ -14,6 +14,7 @@ module.exports = openDb
 function openDb(file, opts) {
 	return opened[file] || new Db(file, opts)
 }
+openDb.migrate = migrate
 
 function nop() {}
 
@@ -25,11 +26,12 @@ function Db(file, opts) {
 	, bufs = []
 
 	if (file && file !== ":memory:") {
-		opened[db.file = file] = db
+		opened[file] = db
 	}
 
 	if (db.nice) args.unshift("nice", "-n", db.nice)
 
+	db.file = file
 	db.queue = []
 	db.headers = db.pending = false
 
@@ -160,14 +162,6 @@ function Db(file, opts) {
 Db.prototype = {
 	// Overwriting Db.prototype will ruin constructor
 	constructor: Db,
-	_add: function(query, values, onDone, onRow) {
-		var db = this
-		if (db.pending === true) {
-			db.queue.unshift([query, values, onRow, onDone])
-		} else {
-			db.each(query, values, onRow, onDone)
-		}
-	},
 	_esc: function _esc(value) {
 		return typeof value !== "string" ? (
 			value === true ? "X'01'" :
@@ -179,7 +173,7 @@ Db.prototype = {
 		) :
 		"'" + value.replace(escapeRe, "''").replace(/\0/g, "") + "'"
 	},
-	each: function(query, values, onRow, onDone) {
+	each: function(query, values, onRow, onDone, immediate) {
 		var db = this
 
 		if (Array.isArray(values)) {
@@ -193,7 +187,7 @@ Db.prototype = {
 			onRow = values
 		}
 		if (db.pending === true) {
-			db.queue.push([query, onRow, onDone])
+			db.queue[immediate === true ? "unshift" : "push"]([query, onRow, onDone])
 		} else {
 			db.pending = true
 			db.changes = 0
@@ -208,12 +202,12 @@ Db.prototype = {
 			)
 		}
 	},
-	run: function(query, values, onDone) {
+	run: function(query, values, onDone, immediate) {
 		if (typeof values === "function") {
-			onDone = values
-			values = null
+			this.each(query, null, nop, values, onDone)
+		} else {
+			this.each(query, values, nop, onDone, immediate)
 		}
-		return this.each(query, values, nop, onDone)
 	},
 	all: function(query, values, onDone) {
 		if (typeof values === "function") {
@@ -252,66 +246,76 @@ Db.prototype = {
 	}
 }
 
-function migrate(db, dir) {
+function migrate(db, dir, _wanted) {
 	var fs = require("fs")
 	, path = require("./path")
-	, log = require("./log")("db", true)
+	, log = require("../log")("db:migrate")
+	, files = fs.readdirSync(dir).filter(isSql).sort()
 
 	db.get("PRAGMA user_version", function(err, res) {
 		if (err) return log.error(err)
-		var patch = ""
+		var i = 0
+		, len = files.length
 		, current = res.user_version
-		, files = fs.readdirSync(dir).filter(isSql).sort()
-		, latest = parseInt(files[files.length - 1], 10)
+		, latest = parseInt(files[len - 1], 10)
+		, wanted = _wanted < latest ? _wanted : latest
 
-		log.info("dir:%s current:%i latest:%i", dir, current, latest)
+		log.info("%s current:%i latest:%i wanted:%i in:%s", db.file, current, latest, wanted, dir)
+
+		if (latest > current) {
+			for (; i < len && parseInt(files[i], 10) <= current; i++);
+			applyPatch()
+		} else if (latest < current) {
+			var rows = []
+			db.each(
+				"SELECT down FROM db_schema WHERE ver>? ORDER BY ver DESC",
+				[wanted],
+				rows.push.bind(rows),
+				function(err) {
+					if (err) throw Error(err)
+					current = wanted
+					var patch = rows.map(r=>r.down).join("\n")
+					db.run(patch, null, saveVersion, true)
+				},
+				true
+			)
+		}
+
+		function applyPatch(err) {
+			if (err) throw Error(err)
+			var f = files[i++]
+			, ver = parseInt(f, 10)
+			if (ver > current) {
+				log.info("Apply %s", f)
+				f = fs.readFileSync(path.resolve(dir, f), "utf8").trim().split(/\s*^-- Down$\s*/m)
+				current = ver
+				db.run(
+					f[0],
+					function() {
+						db.run(
+							"REPLACE INTO db_schema(ver,up,down) VALUES(?,?,?)",
+							[ver, f[0], f[1]],
+							saveVersion,
+							true
+						)
+					},
+					true
+				)
+			}
+		}
 
 		function saveVersion(err) {
 			if (err) throw Error(err)
 			db.run("PRAGMA user_version=?", [current], function(err) {
 				if (err) throw Error(err)
-				log.info("Migrated to", latest)
-			})
-			db.run("INSERT INTO db_schema_log(ver) VALUES (?)", [current], applyPatch)
-		}
-
-		function applyPatch(err) {
-			if (err) throw Error(err)
-			for (var ver, f, i = 0; f = files[i++]; ) {
-				ver = parseInt(f, 10)
-				if (ver > current) {
-					current = ver
-					log.info("Applying migration: %s", f)
-					f = fs.readFileSync(path.resolve(dir, f), "utf8").trim().split(/\s*^-- Down$\s*/m)
-					db.run(f[0])
-					db.run(
-						"REPLACE INTO db_schema(ver,up,down) VALUES(?,?,?)",
-						[ver, f[0], f[1]],
-						saveVersion
-					)
-				}
-			}
-		}
-
-		if (latest > current) {
-			applyPatch()
-		} else if (latest < current) {
-			var rows = []
-			db.run(
-				"SELECT down FROM db_schema WHERE id>? ORDER BY id DESC",
-				[current],
-				function(err) {
-					if (err) throw Error(err)
-					var patch = rows.map(r=>r.rollback).join("\n")
-					db.run(patch, null, saveVersion)
-				},
-				rows.push.bind(rows)
-			)
+				log.info("Migrated to", current)
+				db.run("INSERT INTO db_schema_log(ver) VALUES (?)", [current], applyPatch, true)
+			}, true)
 		}
 	})
 
 	function isSql(name) {
-		return name.split(".").pop()==="sql"
+		return name.split(".").pop() === "sql"
 	}
 }
 

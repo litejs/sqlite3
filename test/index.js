@@ -57,11 +57,18 @@ require("..")
 	//db.run("SELECT 1")
 	//db.get("select sqlite_version() as version", [], cb("VERSION"))
 
+	db.run(".timer on")
+	// changes contains a number of database rows affected by the most recently completed INSERT, DELETE, or UPDATE statement
+	db.run(".changes on")
 	db.run("CREATE TABLE q1 (t INT PRIMARY KEY, key TEXT, val BLOB)", noErr)
 	db.run("insert into q1 values (?, ?, ?)", [123, "1\n2'3", false], noErr)
 	db.insert("q1 values (null, 'abc', x'01')", function(err, row) {
 		assert.equal(err, null)
 		assert.equal(row.lastId, 2)
+		assert.equal(db.changes, 1)
+		assert.ok(db.real >= 0)
+		assert.ok(db.user >= 0)
+		assert.ok(db.sys >= 0)
 	})
 
 	db.insert("q1", [123, "true", true], function(err) {
@@ -76,7 +83,6 @@ require("..")
 	function assertAll(err, _rows) {
 		assert.equal(err, null)
 		assert.equal(_rows, rows)
-		assert.equal(db.changes, 0)
 	}
 	db.all("SELECT * from q1 where key in (?)", [["abc", ""]], function(err, _rows) {
 		assert.equal(err, null)
@@ -99,7 +105,6 @@ require("..")
 		assert.equal(row.val, Buffer.from("a\0b"))
 	})
 
-	db.run(".changes on")
 	db.get("select changes() as c, total_changes() as t", function(err, row) {
 		assert.equal(row.c, db.changes)
 		assert.equal(row.t, db.totalChanges)

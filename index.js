@@ -53,11 +53,10 @@ function Db(file, opts) {
 				return setImmediate(_done)
 			}
 			if (buf[0] === 10 && buf.length === 1) return
-			db.firstRow = row
 			i = cut = buf.indexOf(10) + 1
 			db.headers = buf.toString("utf8", 1, i - 2).split("','")
-		} else if (type === 7) {
-			type = 6
+		} else if (type === 9) {
+			type = 8
 			i = 1
 			if (buf[0] === 10 || buf[0] === 44) {
 				read(buf, i)
@@ -65,19 +64,19 @@ function Db(file, opts) {
 		}
 
 		for (; i < len; ) {
-			if (type > 4 && (
+			if (type > 6 && (
 				buf[i++] !== 39 ||
-				buf[i] === 39 && (type = 6) && ++i ||
-				i === len && (type = 7)
+				buf[i] === 39 && (type = 8) && ++i ||
+				i === len && (type = 9)
 			)) continue
 			code = buf[i++]
 			if (type === 0) {
-				if (code === 89) return _done()      // Y
+				if (code === 89) return setImmediate(_done) // Y
 				type = (
-					code === 39 ? 5 :            // '
-					code === 88 ? 4 :            // X
-					code === 99 ? 3 :            // c
-					code === 82 ? 3 :            // Run Time: real 0.001 user 0.000069 sys 0.000079
+					code === 39 ? 7 :            // '
+					code === 88 ? 6 :            // X
+					code === 99 ? 3 :            // changes:   1   total_changes: 5
+					code === 82 ? 4 :            // Run Time: real 0.001 user 0.000069 sys 0.000079
 					code === 78 ? (i+=3, 1) : 2  // NULL : numbers
 				)
 			} else if (code === 10 || code === 44) {     // \n || ,
@@ -102,21 +101,27 @@ function Db(file, opts) {
 				_len = _type = bufs.length = 0
 			}
 			if (type === 3) {
-				j = buf.toString("utf8").split(/[\:\s]+/)
+				j = buf.toString("utf8", cut, j).split(/[\:\s]+/)
 				db.changes = +j[1]
 				db.totalChanges = +j[3]
+			} else if (type === 4) {
+				j = buf.toString("utf8", cut, j).split(/[\:\s]+/)
+				db.real = +j[3]
+				db.user = +j[5]
+				db.sys = +j[7]
 			} else {
 				row[db.headers[col]] = (
 					type === 1 ? null :
 					type === 2 ? 1 * buf.toString("utf8", cut, j-1) :
-					type === 4 ? (
+					type === 6 ? (
 						cut + 6 === j ? buf[cut + 3] === 49 :
 						Buffer.from(buf.toString("utf8", cut+2, j-2), "hex")
 					) :
-					type > 5 ? buf.toString("utf8", cut+1, j-2).replace(unescapeRe, "'") :
+					type > 7 ? buf.toString("utf8", cut+1, j-2).replace(unescapeRe, "'") :
 					buf.toString("utf8", cut+1, j-2)
 				)
 				if (code === 10) {
+					if (db.firstRow === null) db.firstRow = row
 					if (db.onRow !== null) db.onRow.call(db, row)
 					row = {}
 					col = 0
@@ -192,6 +197,7 @@ Db.prototype = {
 		} else {
 			db.pending = true
 			db.changes = 0
+			db.real = db.user = db.sys = null
 			db.error = db.firstRow = null
 			db.onRow = typeof onRow === "function" ? onRow : null
 			db.onDone = typeof onDone === "function" ? onDone : null

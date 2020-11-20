@@ -4,7 +4,7 @@ var spawn = require("child_process").spawn
 , opened = {}
 , defaults = {
 	bin: "sqlite3",
-	detached: true
+	log: console
 }
 , escapeRe = /'/g
 , unescapeRe = /''/g
@@ -264,19 +264,18 @@ Db.prototype = {
 
 function migrate(db, dir, _wanted) {
 	var fs = require("fs")
-	, path = require("./path")
-	, log = require("../log")("db:migrate")
+	, path = require("path")
 	, files = fs.readdirSync(dir).filter(isSql).sort()
 
 	db.get("PRAGMA user_version", function(err, res) {
-		if (err) return log.error(err)
+		if (err) return db.log.error(err)
 		var i = 0
 		, len = files.length
 		, current = res.user_version
 		, latest = parseInt(files[len - 1], 10)
 		, wanted = _wanted < latest ? _wanted : latest
 
-		log.info("%s current:%i latest:%i wanted:%i in:%s", db.file, current, latest, wanted, dir)
+		db.log.info("%s current:%i latest:%i wanted:%i in:%s", db.file, current, latest, wanted, dir)
 
 		if (latest > current) {
 			for (; i < len && parseInt(files[i], 10) <= current; i++);
@@ -302,7 +301,7 @@ function migrate(db, dir, _wanted) {
 			var f = files[i++]
 			, ver = parseInt(f, 10)
 			if (ver > current) {
-				log.info("Apply %s", f)
+				db.log.info("Apply %s", f)
 				f = fs.readFileSync(path.resolve(dir, f), "utf8").trim().split(/\s*^-- Down$\s*/m)
 				current = ver
 				db.run(
@@ -324,7 +323,7 @@ function migrate(db, dir, _wanted) {
 			if (err) throw Error(err)
 			db.run("PRAGMA user_version=?", [current], function(err) {
 				if (err) throw Error(err)
-				log.info("Migrated to", current)
+				db.log.info("Migrated to", current)
 				db.run("INSERT INTO db_schema_log(ver) VALUES (?)", [current], applyPatch, true)
 			}, true)
 		}

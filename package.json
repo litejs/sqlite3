@@ -1,0 +1,23 @@
+{
+  "name": "@litejs/sqlite3",
+  "version": "21.0.0-rc.1",
+  "license": "MIT",
+  "author": "Lauri Rooden <lauri@rooden.ee>",
+  "description": "Small sqlite3 command wrapper with buffer and boolean support",
+  "keywords": [
+    "litejs",
+    "sqlite",
+    "sqlite3"
+  ],
+  "main": "index.js",
+  "files": [
+    "index.js"
+  ],
+  "scripts": {
+    "test": "nyc -r text -r html -c false lj t"
+  },
+  "repository": "git://github.com/litejs/sqlite3.git",
+  "bugs": {
+    "url": "https://github.com/litejs/sqlite3/issues"
+  }
+}

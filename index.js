@@ -64,7 +64,16 @@ function Db(file, opts) {
 				return setImmediate(_done)
 			}
 			if (buf[0] === 10 && buf.length === 1) return
+			if (bufs.length > 0) {
+				buf = Buffer.concat([bufs[0], buf])
+				len = buf.length
+				bufs.length = 0
+			}
 			i = cut = buf.indexOf(10) + 1
+			if (i < 1) {
+				bufs[0] = buf
+				return
+			}
 			db.headers = buf.toString("utf8", 1, i - 2).split("','")
 		} else if (type === 9) {
 			type = 8

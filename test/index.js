@@ -38,6 +38,7 @@ describe("sqlite3", function() {
 		db.close(assert.end)
 	})
 	.test("sqlite", function(assert, mock) {
+		mock.rand()
 		var Transform = require("stream").Transform
 		, step = Math.floor(Math.random() * 25) + 4
 		, smallChunks = new Transform({

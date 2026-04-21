@@ -158,7 +158,7 @@ function Db(file, opts) {
 
 	function _done() {
 		_row = {}
-		_type = _col = 0
+		_type = _col = _len = bufs.length = 0
 		db.headers = db.pending = false
 		if (db.onDone !== null) db.onDone.call(db, db.error)
 		else if (db.error !== null) throw Error(db.error + "\n-- " + db.lastQuery)

@@ -1,0 +1,49 @@
+name: Test
+on: [ push, pull_request, workflow_dispatch ]
+jobs:
+  Coverage:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+    - uses: actions/setup-node@v5
+    - run: sqlite3 --version
+    - run: npm install --no-audit
+    - run: npm audit --audit-level=low
+    - run: npx c8 -r lcovonly -r text npm test
+    - run: npx lj lint
+    - uses: coverallsapp/github-action@v2
+      name: Upload to coveralls.io
+      with:
+        github-token: ${{ github.token }}
+  Bun:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+    - uses: oven-sh/setup-bun@v2
+    - run: bun i
+    - run: bun x lj t
+  Test:
+    strategy:
+      matrix:
+        include:
+        - { node: 8,  os: ubuntu-24.04,   arch: x86 }
+        - { node: 16, os: ubuntu-latest,  arch: x64 }
+    runs-on: ${{ matrix.os }}
+    name: Node ${{matrix.node}} (${{matrix.os}} ${{matrix.arch}})
+    steps:
+    - run: git config --global core.autocrlf false
+    - uses: actions/checkout@v5
+    - uses: actions/setup-node@v5
+      with:
+        node-version: ${{ matrix.node }}
+        architecture: ${{ matrix.arch }}
+    - run: npm install --no-audit
+    - run: npm test
+  Analyze:
+    uses: litejs/.github/.github/workflows/analyze.yml@main
+  Release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [Analyze, Coverage, Test]
+    uses: litejs/.github/.github/workflows/release.yml@main
+    secrets: inherit
+

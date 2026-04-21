@@ -3,6 +3,8 @@
 // 2017-01-02 (3.16.0) Added ".mode quote" to the command-line shell.
 // 2012-12-12 (3.7.15) Added the ".print" command
 
+require("@litejs/cli/test.js")
+
 describe("sqlite3", function() {
 	var openDb = require("..")
 	this

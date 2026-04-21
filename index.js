@@ -70,6 +70,7 @@ function Db(file, opts) {
 			type = 8
 			i = 1
 			if (buf[0] === 10 || buf[0] === 44) {
+				code = buf[0]
 				read(buf, i)
 			}
 		}
@@ -104,32 +105,32 @@ function Db(file, opts) {
 		} else {
 			_len += len
 		}
-		function read(buf, i) {
-			var j = i
+		function read(data, end) {
+			var j = end
 			if (bufs.length > 0) {
-				bufs.push(buf.slice(0, j))
-				buf = Buffer.concat(bufs, j += _len)
+				bufs.push(data.slice(0, j))
+				data = Buffer.concat(bufs, j += _len)
 				_len = _type = bufs.length = 0
 			}
 			if (type === 3) {
-				j = buf.toString("utf8", cut, j).split(/[\:\s]+/)
+				j = data.toString("utf8", cut, j).split(/[\:\s]+/)
 				db.changes = +j[1]
 				db.totalChanges = +j[3]
 			} else if (type === 4) {
-				j = buf.toString("utf8", cut, j).split(/[\:\s]+/)
+				j = data.toString("utf8", cut, j).split(/[\:\s]+/)
 				db.real = +j[3]
 				db.user = +j[5]
 				db.sys = +j[7]
 			} else {
 				row[db.headers[col]] = (
 					type === 1 ? null :
-					type === 2 ? 1 * buf.toString("utf8", cut, j-1) :
+					type === 2 ? 1 * data.toString("utf8", cut, j-1) :
 					type === 6 ? (
-						cut + 6 === j ? buf[cut + 3] === 49 :
-						Buffer.from(buf.toString("utf8", cut+2, j-2), "hex")
+						cut + 6 === j ? data[cut + 3] === 49 :
+						Buffer.from(data.toString("utf8", cut+2, j-2), "hex")
 					) :
-					type > 7 ? buf.toString("utf8", cut+1, j-2).replace(unescapeRe, "'") :
-					buf.toString("utf8", cut+1, j-2)
+					type > 7 ? data.toString("utf8", cut+1, j-2).replace(unescapeRe, "'") :
+					data.toString("utf8", cut+1, j-2)
 				)
 				if (code === 10) {
 					if (db.firstRow === null) db.firstRow = row
@@ -140,7 +141,7 @@ function Db(file, opts) {
 					col++
 				}
 			}
-			cut = i
+			cut = end
 			type = 0
 		}
 	})
@@ -266,8 +267,8 @@ function migrate(db, dir, _wanted) {
 	, path = require("path")
 	, files = fs.readdirSync(dir).filter(isSql).sort()
 
-	db.get("PRAGMA user_version", function(err, res) {
-		if (err) return db.log.error(err)
+	db.get("PRAGMA user_version", function(initErr, res) {
+		if (initErr) return db.log.error(initErr)
 		var i = 0
 		, len = files.length
 		, current = res.user_version
@@ -320,8 +321,8 @@ function migrate(db, dir, _wanted) {
 
 		function saveVersion(err) {
 			if (err) throw Error(err)
-			db.run("PRAGMA user_version=?", [current], function(err) {
-				if (err) throw Error(err)
+			db.run("PRAGMA user_version=?", [current], function(e) {
+				if (e) throw Error(e)
 				db.log.info("Migrated to", current)
 				db.run("INSERT INTO db_schema_log(ver) VALUES (?)", [current], applyPatch, true)
 			}, true)

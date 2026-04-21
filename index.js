@@ -50,11 +50,10 @@ function Db(file, opts) {
 		, row = _row
 
 		if (typeof db.onRow === "string") {
-			if (buf[len - 2] === 89 && buf[len - 1] === 10 && buf[len - 3] === 10) {
-				db.onRow += buf.toString("utf8", 0, len - 3)
+			db.onRow += buf.toString()
+			if (db.onRow.slice(-3) === "\nY\n") {
+				db.onRow = db.onRow.slice(0, -3)
 				setImmediate(_done)
-			} else {
-				db.onRow += buf.toString()
 			}
 			return
 		}

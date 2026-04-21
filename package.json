@@ -10,14 +10,12 @@
     "sqlite3"
   ],
   "main": "index.js",
-  "files": [
-    "index.js"
-  ],
+  "files": [],
   "scripts": {
-    "test": "nyc -r text -r html -c false lj t"
+    "test": "lj t"
   },
   "repository": "git://github.com/litejs/sqlite3.git",
-  "bugs": {
-    "url": "https://github.com/litejs/sqlite3/issues"
+  "devDependencies": {
+    "@litejs/cli": "26.4.0"
   }
 }

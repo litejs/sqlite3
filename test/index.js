@@ -3,7 +3,7 @@
 // 2017-01-02 (3.16.0) Added ".mode quote" to the command-line shell.
 // 2012-12-12 (3.7.15) Added the ".print" command
 
-require("litejs/test").describe("sqlite3", function() {
+describe("sqlite3", function() {
 	var openDb = require("..")
 	this
 	.test("sqlite", function(assert, mock) {
@@ -33,7 +33,7 @@ require("litejs/test").describe("sqlite3", function() {
 		})
 		db.text(".schema t1", function(err, text) {
 			assert.equal(err, null)
-			assert.equal(text, "CREATE TABLE t1 (t INT PRIMARY KEY, val BLOB);")
+			assert.equal(text, "CREATE TABLE t1 (t INTEGER PRIMARY KEY, val BLOB);")
 		})
 		db.close(assert.end)
 	})
@@ -138,6 +138,11 @@ require("litejs/test").describe("sqlite3", function() {
 		db.get("PRAGMA user_version", [], assertVersion)
 		db.get("PRAGMA user_version", null, assertVersion)
 
+		db.text(".schema q1", function(err, text) {
+			assert.equal(err, null)
+			assert.ok(text.indexOf("CREATE TABLE q1") >= 0)
+		})
+
 		//db.run("SELECT 1;\n");
 
 		db.close(function(err) {
@@ -148,6 +153,66 @@ require("litejs/test").describe("sqlite3", function() {
 			assert.end()
 		})
 
+	})
+	.test("migrate", function(assert, mock) {
+		var os = require("os")
+		, fs = require("fs")
+		, path = require("path")
+		, tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "sqlite3-test-"))
+		, dbFile = path.join(tmpDir, "test.db")
+		, dir2 = path.join(tmpDir, "v2")
+		, dir1 = path.join(tmpDir, "v1")
+		, logInfo = mock.fn()
+
+		fs.mkdirSync(dir2)
+		fs.mkdirSync(dir1)
+
+		var sql1 = "CREATE TABLE db_schema (ver INTEGER PRIMARY KEY, up TEXT, down TEXT);\n"
+			+ "CREATE TABLE db_schema_log (id INTEGER PRIMARY KEY, ver INTEGER);\n"
+			+ "CREATE TABLE items (id INTEGER PRIMARY KEY);\n"
+			+ "-- Down\n"
+			+ "DROP TABLE items;"
+		var sql2 = "CREATE TABLE tags (id INTEGER PRIMARY KEY);\n"
+			+ "-- Down\n"
+			+ "DROP TABLE tags;"
+
+		fs.writeFileSync(path.join(dir2, "001.sql"), sql1)
+		fs.writeFileSync(path.join(dir2, "002.sql"), sql2)
+		fs.writeFileSync(path.join(dir1, "001.sql"), sql1)
+
+		var db = openDb(dbFile, { log: { info: logInfo, error: function() {} }, migration: dir2 })
+		assert.strictEqual(openDb(dbFile), db)
+
+		openDb.migrate(db, dir2, 1)
+
+		db.run("SELECT 1")
+		db.each("SELECT 1", null, null, function() {})
+		db.run("SELECT 2", null, function(err) { assert.equal(err, null) }, true)
+
+		db.all("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name", function(err, rows) {
+			assert.equal(err, null)
+			assert.equal(rows.map(function(r) { return r.name }), ["db_schema", "db_schema_log", "items", "tags"])
+		})
+
+		openDb.migrate(db, dir1)
+
+		db.all("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name", function(err, rows) {
+			assert.equal(err, null)
+			assert.equal(rows.map(function(r) { return r.name }), ["db_schema", "db_schema_log", "items"])
+			db.close(function(err) {
+				assert.equal(err, null)
+				assert.ok(logInfo.called > 0)
+				assert.end()
+			})
+		})
+	})
+	.test("open with nice and no file", function(assert) {
+		var db = openDb(undefined, { nice: 10 })
+		db.get("SELECT 1 AS x", function(err, row) {
+			assert.equal(err, null)
+			assert.equal(row.x, 1)
+			db.close(assert.end)
+		})
 	})
 })
 

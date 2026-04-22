@@ -1,6 +1,6 @@
 {
   "name": "@litejs/sqlite3",
-  "version": "26.4.0",
+  "version": "26.4.1",
   "license": "MIT",
   "author": "Lauri Rooden <lauri@rooden.ee>",
   "description": "Small sqlite3 command wrapper with buffer and boolean support",

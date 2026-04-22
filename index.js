@@ -267,7 +267,7 @@ Db.prototype = {
 		})
 	},
 	close: function(onDone) {
-		opened[this.file] = null
+		if (opened[this.file] === this) opened[this.file] = null
 		this.each(".quit", nop, onDone)
 	}
 }

@@ -216,11 +216,9 @@ Db.prototype = {
 			db.onRow = typeof onRow === "function" || onRow === "" ? onRow : null
 			db.onDone = typeof onDone === "function" ? onDone : null
 			db.lastQuery = query
-			//db.child.stdin.write(query + "\n;\n.print Y\n")
-			db.child.stdin.write(
-				query.charCodeAt(0) !== 46 && query.charCodeAt(query.length-1) !== 59 ? query + ";\n.print Y\n" :
-				query + "\n.print Y\n"
-			)
+			db.child.stdin.write((
+				query.charCodeAt(0) === 46 || query.charCodeAt(query.length-1) === 59 ? query : query + ";"
+			) + "\n.print Y\n")
 		}
 	},
 	run: function(query, values, onDone, immediate) {

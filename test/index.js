@@ -7,8 +7,7 @@ require("@litejs/cli/test.js")
 
 describe("sqlite3", function() {
 	var openDb = require("..")
-	this
-	.test("sqlite", function(assert, mock) {
+	test("sqlite", function(assert, mock) {
 		var db = openDb(":memory:")
 		db.run("CREATE TABLE t1 (t INTEGER PRIMARY KEY, val BLOB)")
 		db.run("INSERT INTO t1 VALUES (?, ?)", [1, "str"])
@@ -39,8 +38,8 @@ describe("sqlite3", function() {
 		})
 		db.close(assert.end)
 	})
-	.test("sqlite", function(assert, mock) {
-		mock.rand()
+	test("sqlite", [null, 2, 44, 45, 46, 72, 79, 82649], function(seed, assert, mock) {
+		mock.rand(seed)
 		var Transform = require("stream").Transform
 		, step = Math.floor(Math.random() * 25) + 4
 		, smallChunks = new Transform({
@@ -157,7 +156,7 @@ describe("sqlite3", function() {
 		})
 
 	})
-	.test("migrate", function(assert, mock) {
+	test("migrate", function(assert, mock) {
 		var os = require("os")
 		, fs = require("fs")
 		, path = require("path")
@@ -209,8 +208,19 @@ describe("sqlite3", function() {
 			})
 		})
 	})
-	.test("open with nice and no file", function(assert) {
+	test("open with nice and no file", function(assert) {
 		var db = openDb(undefined, { nice: 10 })
+		db.get("SELECT 1 AS x", function(err, row) {
+			assert.equal(err, null)
+			assert.equal(row.x, 1)
+			db.close(assert.end)
+		})
+	})
+	test("lone newline chunk while awaiting header", function(assert) {
+		var db = openDb(":memory:")
+		db.run(".mode quote", function() {
+			db.child.stdout.emit("data", Buffer.from([10]))
+		})
 		db.get("SELECT 1 AS x", function(err, row) {
 			assert.equal(err, null)
 			assert.equal(row.x, 1)

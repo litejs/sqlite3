@@ -4,7 +4,8 @@ var spawn = require("child_process").spawn
 , opened = {}
 , defaults = {
 	bin: "sqlite3",
-	log: console
+	log: console,
+	detached: true
 }
 , escapeRe = /'/g
 , unescapeRe = /''/g

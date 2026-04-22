@@ -291,15 +291,14 @@ function migrate(db, dir, _wanted) {
 			for (; i < len && parseInt(files[i], 10) <= current; i++);
 			applyPatch()
 		} else if (latest < current) {
-			var rows = []
+			var patch = ""
 			db.each(
 				"SELECT down FROM db_schema WHERE ver>? ORDER BY ver DESC",
 				[wanted],
-				rows.push.bind(rows),
+				function(r) { patch += r.down + "\n" },
 				function(err) {
 					if (err) throw Error(err)
 					current = wanted
-					var patch = rows.map(r=>r.down).join("\n")
 					db.run(patch, null, saveVersion, true)
 				},
 				true
